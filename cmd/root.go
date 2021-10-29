@@ -16,9 +16,11 @@ limitations under the License.
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"github.com/fatih/color"
 	"os"
+
+	"github.com/fatih/color"
 
 	"github.com/spf13/cobra"
 
@@ -30,13 +32,13 @@ import (
 )
 
 var (
- cfgFile string
- project string
- cluster string
- verbose bool
- scan bool
- ns string
- namespaceInventoryLocation string
+	cfgFile                    string
+	project                    string
+	cluster                    string
+	verbose                    bool
+	scan                       bool
+	ns                         string
+	namespaceInventoryLocation string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -44,17 +46,19 @@ var rootCmd = &cobra.Command{
 	Use:   "nscon NAMESPACE_NAME",
 	Short: "nscon allows you quickly switch between namespaces in differnet GKE clusters",
 	Long: `nscon it is tool that allows you to easily and quickly connect to clusters based on given namespace name.
-	It scans all GKE clusters in all GCP projects you have configured for you user, and index all namespaces in cluster.
-	File with namespace inventory is stored in your home directory under $HOME/.nscon/namespaces.yaml.`,
-	Args: cobra.ExactArgs(1),
-	//Args: func(cmd *cobra.Command, args []string) error {
-	//	if len(args) < 1 {
-	//		return errors.New("requires namespace name as an argument")
-	//	} else if len(args) > 1 {
-	//		return errors.New("takes only one argument (namespace name)")
-	//	}
-	//	return nil
-	//},
+It scans all GKE clusters in all GCP projects you have configured for you user, and index all namespaces in cluster.
+File with namespace inventory is stored in your home directory under $HOME/.nscon/namespaces.yaml.`,
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			if !scan {
+				return errors.New("requires namespace name as an argument")
+			}
+			return nil
+		} else if len(args) > 1 {
+			return errors.New("takes only one argument (namespace name)")
+		}
+		return nil
+	},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
@@ -63,6 +67,7 @@ var rootCmd = &cobra.Command{
 		nI := make(inventory.Inventory)
 		namespaceInventoryLocation = viper.GetString("inventory_location")
 		if scan {
+			color.Green("Scaning...")
 			projects := gcp.GetProjectsList()
 			result := namespace.ScanProjectsForNamespaces(projects, verbose)
 			nI.CreateFromProjectNamespaces(result)
@@ -137,7 +142,7 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "gives verbose output of some actions application will perform")
-	rootCmd.PersistentFlags().BoolVarP(&scan, "scan", "s",false, "scans all clusters in all cloud projects for namespaces")
+	rootCmd.PersistentFlags().BoolVarP(&scan, "scan", "s", false, "scans all clusters in all cloud projects for namespaces")
 	rootCmd.PersistentFlags().StringVarP(&project, "project", "p", "", "project you want to search namespaces in")
 	rootCmd.PersistentFlags().StringVarP(&cluster, "cluster", "c", "", "cluster name you want to search namespaces in")
 	// Cobra also supports local flags, which will only run
@@ -172,5 +177,3 @@ func initConfig() {
 //TODO: refactor code !!
 //TODO: add app description
 //TODO: standard input implementation
-
-
