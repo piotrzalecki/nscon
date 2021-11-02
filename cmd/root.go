@@ -18,6 +18,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/fatih/color"
@@ -152,14 +153,13 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	// Find home directory.
+	home, err := os.UserHomeDir()
+	cobra.CheckErr(err)
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
-		home, err := os.UserHomeDir()
-		cobra.CheckErr(err)
-
 		// Search config in home directory with name ".nscon" (without extension).
 		viper.AddConfigPath(home + "/.nscon")
 		viper.SetConfigType("yaml")
@@ -169,11 +169,41 @@ func initConfig() {
 	viper.AutomaticEnv() // read in environment variables that match
 
 	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
+	if err := viper.ReadInConfig(); err != nil {
+		color.Red("Configuration file not found. Creating default configuration")
+
+		configDir := home + "/.nscon"
+		configFilePath := configDir + "/config.yaml"
+		err := os.Mkdir(home+"/.nscon", 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+		f, err := os.OpenFile(configFilePath, os.O_CREATE, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+		f.Close()
+
+		nsInventoryLocation := configDir + "/namespaces.yaml"
+		f, err = os.OpenFile(nsInventoryLocation, os.O_CREATE, 0755)
+		if err != nil {
+			log.Fatal(err)
+		}
+		f.Close()
+
+		viper.Set("inventory_location", nsInventoryLocation)
+		viper.WriteConfigAs(configFilePath)
+		err = viper.WriteConfig()
+		if err != nil {
+			color.Red("Config file initialisation filed")
+			fmt.Println(err)
+		}
+
+		color.Green("Configuration initialised!! Execute 'nscon --scan' to create namespaces inventory")
+		os.Exit(0)
 
 	}
 }
 
 //TODO: refactor code !!
-//TODO: add app description
 //TODO: standard input implementation
