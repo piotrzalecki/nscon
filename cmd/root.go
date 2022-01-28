@@ -16,10 +16,12 @@ limitations under the License.
 package cmd
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/fatih/color"
 
@@ -64,7 +66,6 @@ File with namespace inventory is stored in your home directory under $HOME/.nsco
 	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
 		//var nI inventory.Inventory
-
 		nI := make(inventory.Inventory)
 		namespaceInventoryLocation = viper.GetString("inventory_location")
 		if scan {
@@ -133,6 +134,22 @@ File with namespace inventory is stored in your home directory under $HOME/.nsco
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	in := bufio.NewReader(os.Stdin)
+	stat, _ := os.Stdin.Stat()
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		in, _,  err := in.ReadLine()
+		if err != nil {
+			log.Panic(err)
+		}
+		input := string(in)
+		nms := strings.Split(input, ",")[0]
+		cl := strings.Split(input, ",")[1]
+		fmt.Println("provided namespace is", nms)
+		fmt.Println("provided cluster is", cl)
+		ns = nms
+		cluster = cl
+	}
+
 	cobra.CheckErr(rootCmd.Execute())
 }
 
